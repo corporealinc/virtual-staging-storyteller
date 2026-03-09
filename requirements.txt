@@ -1,0 +1,8 @@
+# Note: This project uses Node.js/Express instead of Python.
+# Please refer to package.json for dependencies.
+
+# Equivalent Python dependencies would have been:
+# fastapi
+# uvicorn
+# python-multipart
+# google-genai
