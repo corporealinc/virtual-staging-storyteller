@@ -1,5 +1,5 @@
 {
-  "name": "Dynamic Virtual Staging Storyteller",
+  "name": "Virtual Staging Storyteller",
   "description": "A virtual staging application for real estate that captures leads and generates virtually staged room images with design stories using Gemini AI.",
   "requestFramePermissions": ["camera"]
 }

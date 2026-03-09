@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  /* Luxury Real Estate Colors */
+  --color-navy: #1B2A41;
+  --color-gold: #C5A059;
+  --color-alabaster: #F9F9F7;
+
+  /* Custom Typography */
+  --font-playfair: "Playfair Display", serif;
+  --font-lato: "Lato", sans-serif;
+}
+
+/* Set global app defaults based on the theme */
+@layer base {
+  body {
+    background-color: var(--color-alabaster);
+    color: var(--color-navy);
+    font-family: var(--font-lato);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
