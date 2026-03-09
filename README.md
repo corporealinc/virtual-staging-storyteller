@@ -1,4 +1,4 @@
-# Dynamic Virtual Staging Storyteller
+# Virtual Staging Storyteller
 
 This project is a web application for virtual staging using Gemini AI.
 
