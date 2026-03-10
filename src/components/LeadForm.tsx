@@ -25,8 +25,8 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
       className="w-full max-w-md mx-auto bg-white p-8 rounded shadow-xl border border-navy/10"
     >
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-playfair font-bold text-navy mb-2">Welcome to the Open House</h2>
-        <p className="text-navy/70 font-lato">Sign in to unlock the Virtual Staging Storyteller.</p>
+        <h2 className="text-3xl font-inter font-bold text-navy mb-2">Welcome</h2>
+        <p className="text-navy/70">Sign in to unlock the Virtual Staging Storyteller.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -39,7 +39,7 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 bg-alabaster rounded border border-navy/20 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all text-navy placeholder:text-gray-400 font-lato"
+            className="w-full px-4 py-3 bg-gray-50 rounded border border-navy/20 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all text-navy placeholder:text-gray-400"
             placeholder="Jane Doe"
           />
         </div>
@@ -53,7 +53,7 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 bg-alabaster rounded border border-navy/20 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all text-navy placeholder:text-gray-400 font-lato"
+            className="w-full px-4 py-3 bg-gray-50 rounded border border-navy/20 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all text-navy placeholder:text-gray-400"
             placeholder="jane@example.com"
           />
         </div>
@@ -66,14 +66,14 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-3 bg-alabaster rounded border border-navy/20 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all text-navy placeholder:text-gray-400 font-lato"
+            className="w-full px-4 py-3 bg-gray-50 rounded border border-navy/20 focus:ring-1 focus:ring-gold focus:border-gold outline-none transition-all text-navy placeholder:text-gray-400"
             placeholder="(555) 123-4567"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full bg-navy hover:bg-navy/90 text-alabaster font-bold font-lato py-4 rounded transition-colors flex items-center justify-center gap-2 shadow-lg mt-2"
+          className="w-full bg-navy hover:bg-navy/90 text-white font-bold py-4 rounded transition-colors flex items-center justify-center gap-2 shadow-lg mt-2"
         >
           Start Staging <ArrowRight className="w-5 h-5" />
         </button>
