@@ -63,7 +63,7 @@ export default function App() {
     setCurrentState('staging');
   };
 
-  const handleStagingSubmit = async (image: File, style: string) => {
+  const handleStagingSubmit = async (image: File, style: string, roomType: string, fengShui: boolean) => {
     if (!leadData) return;
     
     setIsProcessing(true);
@@ -76,6 +76,8 @@ export default function App() {
       formData.append('email', leadData.email);
       formData.append('phone', leadData.phone);
       formData.append('style', style);
+      formData.append('roomType', roomType);
+      formData.append('fengShui', String(fengShui));
       formData.append('image', image);
 
       const response = await fetch('/api/stage-room', {
@@ -106,8 +108,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-alabaster font-lato text-navy selection:bg-gold/30 selection:text-navy">
-      <header className="bg-alabaster border-b border-navy/10 sticky top-0 z-50">
+    <div className="min-h-screen bg-gray-50 font-inter text-navy selection:bg-gold/30 selection:text-navy">
+      <header className="bg-gray-50 border-b border-navy/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
@@ -115,7 +117,7 @@ export default function App() {
               alt="Open House APP Logo" 
               className="h-10 w-auto object-contain" 
             />
-            <span className="font-playfair font-bold text-2xl tracking-tight text-navy">Open House APP</span>
+            <span className="font-inter font-bold text-2xl tracking-tight text-navy">Open House APP</span>
           </div>
           {leadData && (
             <div className="text-sm text-navy/70 hidden sm:block uppercase tracking-wider font-bold">
@@ -128,13 +130,13 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {!hasApiKey ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-            <h2 className="text-4xl font-playfair font-bold text-navy">API Key Required</h2>
+            <h2 className="text-4xl font-inter font-bold text-navy">API Key Required</h2>
             <p className="text-navy/80 max-w-lg text-lg">
               To use the high-quality <strong>Gemini Image</strong> model, you need to select a paid API key from a Google Cloud project.
             </p>
             <button
               onClick={handleSelectKey}
-              className="bg-navy hover:bg-navy/90 text-alabaster font-bold py-3 px-8 rounded transition-colors shadow-lg"
+              className="bg-navy hover:bg-navy/90 text-white font-bold py-3 px-8 rounded transition-colors shadow-lg"
             >
               Select API Key
             </button>
@@ -153,7 +155,7 @@ export default function App() {
               className="flex flex-col items-center justify-center min-h-[60vh]"
             >
               <div className="text-center mb-12 max-w-2xl">
-                <h1 className="text-4xl sm:text-6xl font-playfair font-bold text-navy mb-6 tracking-tight leading-tight">
+                <h1 className="text-4xl sm:text-6xl font-inter font-bold text-navy mb-6 tracking-tight leading-tight">
                   Virtual Staging <span className="text-gold italic pr-2">Storyteller</span>
                 </h1>
                 <p className="text-xl text-navy/80 leading-relaxed font-light">
