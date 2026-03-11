@@ -217,6 +217,9 @@ async function startServer() {
   });
 
   // Vite middleware for development
+  // Serve images folder as static assets (both dev and prod)
+  app.use('/images', express.static('images'));
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
