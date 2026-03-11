@@ -58,9 +58,24 @@ export default function App() {
     }
   };
 
-  const handleLeadSubmit = (data: LeadData) => {
+  const [leadId, setLeadId] = useState<number | null>(null);
+
+  const handleLeadSubmit = async (data: LeadData) => {
     setLeadData(data);
     setCurrentState('staging');
+
+    // Save lead to database immediately
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (result.id) setLeadId(result.id);
+    } catch (err) {
+      console.error('Failed to save lead:', err);
+    }
   };
 
   const handleStagingSubmit = async (image: File, style: string, roomType: string, fengShui: boolean) => {
@@ -78,6 +93,7 @@ export default function App() {
       formData.append('style', style);
       formData.append('roomType', roomType);
       formData.append('fengShui', String(fengShui));
+      if (leadId) formData.append('leadId', String(leadId));
       formData.append('image', image);
 
       const response = await fetch('/api/stage-room', {

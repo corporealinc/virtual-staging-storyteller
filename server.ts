@@ -2,26 +2,22 @@ import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
-import Database from "better-sqlite3";
+import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import textToSpeech from "@google-cloud/text-to-speech";
 
-// Initialize Database
-const db = new Database("leads.db");
-db.exec(`
-  CREATE TABLE IF NOT EXISTS leads (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    email TEXT,
-    phone TEXT,
-    style TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Initialize Supabase
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn("Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not found in environment variables.");
+}
+
+const supabase = createClient(supabaseUrl || "", supabaseKey || "");
 
 // Initialize Gemini AI
-// Note: The API key is injected via process.env.GEMINI_API_KEY or process.env.API_KEY
 const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
 if (!apiKey) {
@@ -34,6 +30,21 @@ const ai = new GoogleGenAI({ apiKey: apiKey });
 const ttsClient = new textToSpeech.TextToSpeechClient({
   apiKey: apiKey,
 });
+
+// Helper function to force a timeout on stalled API requests
+const fetchWithTimeout = async (model: string, contentParts: any[], timeoutMs: number) => {
+  const timeoutPromise = new Promise<any>((_, reject) => {
+    setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs);
+  });
+
+  return Promise.race([
+    ai.models.generateContent({
+      model,
+      contents: { parts: contentParts },
+    }),
+    timeoutPromise
+  ]);
+};
 
 async function startServer() {
   const app = express();
@@ -49,21 +60,19 @@ async function startServer() {
   // API Routes
   app.post("/api/stage-room", upload.single("image"), async (req, res) => {
     try {
-      const { name, email, phone, style, roomType, fengShui } = req.body;
+      const { name, email, phone, style, roomType, fengShui, leadId } = req.body;
       const file = req.file;
 
       if (!file) {
         return res.status(400).json({ error: "No image uploaded" });
       }
 
-      // 1. Save Lead
-      const stmt = db.prepare(
-        "INSERT INTO leads (name, email, phone, style) VALUES (?, ?, ?, ?)"
-      );
-      stmt.run(name, email, phone, style);
+      // 1. Update lead with selected style
+      if (leadId) {
+        await supabase.from("leads").update({ style }).eq("id", leadId);
+      }
 
       // 2. Call Gemini API for Virtual Staging
-      // Resize image to max 1024px on longest side and compress to reduce payload
       const resizedBuffer = await sharp(file.buffer)
         .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 75 })
@@ -74,8 +83,9 @@ async function startServer() {
       const base64Image = resizedBuffer.toString("base64");
       const mimeType = "image/jpeg";
 
-      // Build prompt based on whether Feng Shui mode is enabled
+      // --- 1. PROMPTS SETUP ---
       const useFengShui = fengShui === 'true';
+
       const basePrompt = `
         Act as a professional interior designer.
         Virtually stage the provided empty ${roomType} photo in a "${style}" style.
@@ -108,45 +118,67 @@ async function startServer() {
         - Add one short, engaging sentence to your description explaining how a specific Feng Shui element used in this room (like the commanding position, soft shapes, or balanced elements) promotes harmony, wealth, or positive energy.
       `;
 
-      const prompt = useFengShui ? basePrompt + fengShuiAddendum : basePrompt;
+      // The Image Prompt: instructions for generating the staged image
+      const imagePrompt = useFengShui ? basePrompt + fengShuiAddendum : basePrompt;
 
-      // List of fast, cost-effective Gemini API native image models
+      // The Text Prompt: based on imagePrompt for consistency, but only requesting text output
+      const storyPrompt = `
+        You are the designer who just completed the following staging job:
+
+        ${imagePrompt}
+
+        Now write a brief, enthusiastic 2-3 sentence description of your design.
+        Highlight the key features of the space.
+        Keep the tone inviting, simple to read, and highly appealing to home buyers.
+        Do NOT generate an image. Only provide text.
+      `;
+
       const models = [
         "gemini-3.1-flash-image-preview",
         "gemini-2.5-flash-image"
       ];
 
-      const contentParts = [
-        { text: prompt },
+      const imageContentParts = [
+        { text: imagePrompt },
         { inlineData: { mimeType, data: base64Image } },
       ];
 
-      // Try each model in order, with retry on transient network errors
       let response;
+      let modelSucceeded = false;
+
+      // --- 2. GENERATE IMAGE ---
+      // Try each model in order, with retry on transient network errors
       for (const model of models) {
         let succeeded = false;
+        
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             console.log(`Trying ${model} (attempt ${attempt})...`);
-            response = await ai.models.generateContent({
-              model,
-              contents: { parts: contentParts },
-            });
+            
+            // Generate the image with a strict 60-second timeout wrapper
+            response = await fetchWithTimeout(model, imageContentParts, 60000);
+            
             succeeded = true;
+            modelSucceeded = true;
             console.log(`Success with ${model}`);
             break;
+            
           } catch (err: any) {
-            const isSocketError = err?.cause?.code?.includes('UND_ERR');
-            if (isSocketError && attempt < 3) {
-              console.warn(`Attempt ${attempt} failed (${err.cause?.code}), retrying in 2s...`);
+            const isTimeout = err.message === 'TIMEOUT';
+            const isSocketError = err?.cause?.code?.includes('UND_ERR') || err?.code === 'ECONNRESET';
+            
+            if ((isSocketError || isTimeout) && attempt < 3) {
+              console.warn(`Attempt ${attempt} failed (${isTimeout ? 'Timeout' : 'Socket Error'}), retrying in 2s...`);
               await new Promise((r) => setTimeout(r, 2000));
               continue;
             }
+            
             // If it's a model-not-found error, try next model
             if (err?.status === 404 || err?.message?.includes('not found') || err?.message?.includes('is not supported')) {
               console.warn(`Model ${model} not available, trying next...`);
               break;
             }
+            
             // On last model, throw
             if (model === models[models.length - 1]) throw err;
             break;
@@ -155,42 +187,118 @@ async function startServer() {
         if (succeeded) break;
       }
 
-      let generatedImageBase64 = null;
-      let designStory = "";
+      // Safety check: if all models failed and threw no hard errors, response is undefined
+      if (!modelSucceeded || !response) {
+         throw new Error("All image generation models failed to respond.");
+      }
 
-      // Parse response for image and text
-      if (response.candidates && response.candidates[0].content.parts) {
+      let generatedImageBase64 = null;
+
+      // Parse response for image safely
+      if (response?.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
           if (part.inlineData) {
             generatedImageBase64 = part.inlineData.data;
-          } else if (part.text) {
-            designStory += part.text;
           }
         }
       }
 
       if (!generatedImageBase64) {
-        // Fallback or error handling if no image is returned
-        // Sometimes the model might refuse or fail to generate an image
         console.error("No image generated by Gemini");
         return res.status(500).json({ 
           error: "Failed to generate staged image. The model might have refused the request or encountered an error." 
         });
       }
 
+      // --- 3. GENERATE TEXT STORY ---
+      console.log("Image complete! Now generating the designer vision...");
+      let designStory = "";
+      
+      try {
+        // Use gemini-2.5-flash to rapidly write the story based on the original room context
+        const textResponse = await ai.models.generateContent({
+          model: "gemini-2.5-flash", 
+          contents: { 
+            parts: [
+              { text: storyPrompt },
+              { inlineData: { mimeType, data: base64Image } }
+            ] 
+          }
+        });
+        
+        if (textResponse?.candidates?.[0]?.content?.parts) {
+           for (const part of textResponse.candidates[0].content.parts) {
+             if (part.text) designStory += part.text;
+           }
+        }
+      } catch (textErr) {
+        console.error("Text generation failed, using fallback:", textErr);
+        designStory = `Welcome to your beautifully staged new ${roomType}. We designed this space in a stunning ${style} style to help you envision your future here!`;
+      }
+
+      // --- 4. RETURN EVERYTHING TO FRONTEND ---
       res.json({
         image: `data:image/png;base64,${generatedImageBase64}`,
         story: designStory.trim(),
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in /api/stage-room:", error);
       res.status(500).json({ error: error.message || "Internal Server Error" });
     }
   });
 
-  app.get("/api/leads", (req, res) => {
-    const leads = db.prepare("SELECT * FROM leads ORDER BY timestamp DESC").all();
+  app.post("/api/leads", async (req, res) => {
+    try {
+      const { name, email, phone } = req.body;
+
+      if (!name || !email) {
+        return res.status(400).json({ error: "Name and email are required." });
+      }
+
+      // 1. Check if this email is already in the database
+      const { data: existingLead, error: searchError } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (searchError) {
+        throw searchError;
+      }
+
+      // 2. If the lead already exists, return their id and skip the insert
+      if (existingLead) {
+        console.log(`Lead ${email} already exists. Skipping insert.`);
+        return res.json({ success: true, id: existingLead.id, message: "Lead already exists." });
+      }
+
+      // 3. If they don't exist, insert them safely
+      const { data, error: insertError } = await supabase
+        .from("leads")
+        .insert({ name, email, phone })
+        .select("id")
+        .single();
+
+      if (insertError) {
+        return res.status(500).json({ error: insertError.message });
+      }
+
+      console.log(`Successfully saved new lead: ${email}`);
+      res.json({ success: true, id: data.id });
+
+    } catch (error) {
+      console.error("Error saving lead:", error);
+      res.status(500).json({ error: "Failed to save lead." });
+    }
+  });
+
+  app.get("/api/leads", async (req, res) => {
+    const { data: leads, error } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
     res.json(leads);
   });
 
@@ -224,8 +332,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production, serve static files from dist
-    // (This part is for completeness, though in this env we mostly run dev)
     app.use(express.static("dist"));
   }
 
