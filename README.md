@@ -2,7 +2,7 @@
 
 An AI-powered virtual staging tool that transforms empty rooms into beautifully designed spaces. Upload a photo, choose a style, and experience an immersive presentation with AI-generated staging, a design narrative, and voiceover audio.
 
-![Architecture](images/Architecture.png)
+![Architecture](public/images/Architecture.png)
 
 ## Architecture
 
