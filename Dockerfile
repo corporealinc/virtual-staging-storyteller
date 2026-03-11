@@ -20,7 +20,6 @@ RUN npm ci
 COPY --from=build /app/dist ./dist
 COPY server.ts ./
 COPY tsconfig.json ./
-COPY images ./images
 
 ENV NODE_ENV=production
 ENV PORT=8080
