@@ -36,7 +36,7 @@ User → React + Vite Frontend → Node.js / Express (Cloud Run) → Google Clou
 | Backend | Node.js, Express, Sharp (image resizing) |
 | AI | Gemini API (image generation + text) |
 | Audio | Google Cloud Text-to-Speech |
-| Database | SQLite (lead capture) |
+| Database | Supabase (PostgreSQL) |
 | Font | Inter |
 
 ## Setup
@@ -50,8 +50,10 @@ User → React + Vite Frontend → Node.js / Express (Cloud Run) → Google Clou
     Create a `.env` file with:
     ```
     GEMINI_API_KEY=your_api_key_here
+    SUPABASE_URL=your_project_url
+    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
     ```
-    The same key is used for Gemini API and Google Cloud TTS. Ensure the Cloud Text-to-Speech API is enabled on your GCP project.
+    The Gemini key is also used for Google Cloud TTS. Ensure the Cloud Text-to-Speech API is enabled on your GCP project.
 
 3. **Run Development Server**:
     ```bash
@@ -81,5 +83,4 @@ User → React + Vite Frontend → Node.js / Express (Cloud Run) → Google Clou
 - `src/components/LeadForm.tsx` — Lead capture form.
 - `src/components/StagingTool.tsx` — Room type, style, and Feng Shui selection UI.
 - `src/components/ResultView.tsx` — Staged image, story reveal, and audio playback.
-- `images/` — Style preview images and architecture diagram.
-- `leads.db` — SQLite database for storing leads.
+- `public/images/` — Style preview images and architecture diagram.
